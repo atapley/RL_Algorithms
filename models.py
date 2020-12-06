@@ -5,6 +5,8 @@ from bases import ModelBase
 from torch import optim
 
 
+# Typical Linear (Dense) block for training. Size of hidden layers can be controlled within args.hidden
+# or when called.
 class LinearBlock(nn.Module):
 
     def __init__(self, state_space, hidden):

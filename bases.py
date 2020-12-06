@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from torch import nn
 
+# Bases are used for registration within a registry and enforce main methods.
 
 class ModelBase(nn.Module, metaclass=ABCMeta):
     def __init__(self):

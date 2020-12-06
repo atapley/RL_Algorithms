@@ -1,6 +1,6 @@
 import argparse
 
-
+# Parse arguments and set defaults
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='AC Pytorch Implementation')
 
@@ -10,13 +10,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--solved', type=list, default=[195, 100],
                         help='Average reward of X over Y episodes to be considered solved')
 
-    parser.add_argument('--model', type=str, default='ActorCritic',
+    parser.add_argument('--model', type=str, default='DDQN',
                         help='Model type')
 
-    parser.add_argument('--agent', type=str, default='A2CAgent',
+    parser.add_argument('--agent', type=str, default='DDQNAgent',
                         help='Agent type')
 
-    parser.add_argument('--trainer', type=str, default='A2CTrainer',
+    parser.add_argument('--trainer', type=str, default='DDQNTrainer',
                         help='Trainer type')
 
     parser.add_argument('--num_episodes', type=int, default=4000,
@@ -28,10 +28,10 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--device', type=str, default='cpu',
                         help='Device to run on')
 
-    parser.add_argument('--hidden', type=list, default=[128],
+    parser.add_argument('--hidden', type=list, default=[128,128],
                         help='Size of shared hidden layers in the model')
 
-    parser.add_argument('--buffer_size', type=int, default=300,
+    parser.add_argument('--buffer_size', type=int, default=1000,
                         help='Size of replay buffer')
 
     parser.add_argument('--batch_size', type=int, default=32,
@@ -49,7 +49,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--epsilon', type=list, default=[0.001, 0.6],
                         help='Randomness value [max, min]')
 
-    parser.add_argument('--tensorboard', type=str, default='./runs/A2C_CartPole',
+    parser.add_argument('--tensorboard', type=str, default='./runs/DDQN_CartPole',
                         help='Where to save tensorboard files to')
 
     parser.add_argument('--render', type=bool, default=False,

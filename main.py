@@ -8,6 +8,7 @@ def main():
     args = parse_arguments()
     print('Command Line Args:', args)
 
+    # If tensorboard path already exists, remove dir
     if os.path.exists(args.tensorboard):
         [os.remove(os.path.join(args.tensorboard, f)) for f in os.listdir(args.tensorboard)]
         os.rmdir(args.tensorboard)

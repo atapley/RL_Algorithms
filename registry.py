@@ -1,5 +1,7 @@
 from bases import ModelBase, TrainerBase, AgentBase
 
+# Registers for Models, Trainers, and Agents.
+# Each registry acts as a factory to create a modular codebase
 
 class ModelRegistry:
     _registry = {}
@@ -19,6 +21,7 @@ class ModelRegistry:
             raise ValueError(model_name)
         return model
 
+
 class TrainerRegistry:
     _registry = {}
 
@@ -36,6 +39,7 @@ class TrainerRegistry:
         if not model:
             raise ValueError(trainer_name)
         return model
+
 
 class AgentRegistry:
     _registry = {}

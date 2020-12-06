@@ -1,7 +1,7 @@
 from torch.utils.tensorboard import SummaryWriter
 from registry import TrainerRegistry
 from bases import TrainerBase
-from buffers import Buffer, ExpReplayBuffer
+from buffers import Buffer
 import torch as T
 
 
@@ -12,7 +12,7 @@ class DDQNTrainer(TrainerBase):
         self.env = env
         self.agent = agent
         self.num_episodes = args.num_episodes
-        self.replay_buffer = ExpReplayBuffer(args.buffer_size, args.batch_size, args.device)
+        self.buffer = Buffer(args.buffer_size, args.batch_size)
         self.max_steps = args.max_steps
 
         assert len(args.solved) == 2, 'args.solved has to have length of exactly 2!'
@@ -24,34 +24,44 @@ class DDQNTrainer(TrainerBase):
 
     def train(self):
         reward_history = []
+        self.buffer.reset()
         # For each update
 
         if self.render:
             self.env.render()
 
+        # For each episode
         for episode in range(self.num_episodes):
             episode_reward = 0
             episode_losses = []
             state = self.env.reset()
 
+            # Until max_steps is reached
             for i in range(self.max_steps):
+
+                # Get action
                 action = self.agent.get_action(episode, state)
 
+                # Take step based on action
                 state_, reward, done, _ = self.env.step(action)
                 episode_reward += reward
 
+                # Store transition within the buffer for batched learning
                 transition = [state, action, reward, state_, done]
 
-                self.replay_buffer.insert_transition(transition)
+                self.buffer.insert_transition(transition)
 
-                if self.replay_buffer.is_full():
-                    states, actions, rewards,states_, dones = self.replay_buffer.sample_buffers()
-                    loss, = self.agent.learn(states, actions, rewards, states_, dones)
+                # If the buffer is full, start learning using a random sample of transitions from the buffer
+                if self.buffer.is_full():
+                    batch = self.buffer.sample_buffer()
+                    loss = self.agent.learn(batch)
                     episode_losses.append(loss)
 
+                # Update the target network every 100 episodes
                 if episode % 100 == 0:
                     self.agent.update_target()
 
+                # If the episode has finished (max_steps reached or from env)
                 if done or i == self.max_steps - 1:
                     print('Episode: ', episode, 'Reward: %i' % episode_reward)
                     reward_history.append(episode_reward)
@@ -82,7 +92,7 @@ class A2CTrainer(TrainerBase):
         self.env = env
         self.agent = agent
         self.num_episodes = args.num_episodes
-        self.buffer = Buffer(args.buffer_size, args.device)
+        self.buffer = Buffer(args.buffer_size, args.batch_size)
 
         assert len(args.solved) == 2, 'args.solved has to have length of exactly 2!'
         self.solved_r = args.solved[0]
@@ -98,19 +108,26 @@ class A2CTrainer(TrainerBase):
         if self.render:
             self.env.render()
 
+        # For each episode
         for episode in range(self.num_episodes):
             episode_reward = 0
-            self.buffer.reset_buffers()
+            self.buffer.reset()
             state = self.env.reset()
 
+            # While there is room in the buffer
             for i in range(self.buffer.buffer_size):
+                # Get action
                 action, log_probs, entropy = self.agent.get_action(state)
 
+                # Take step
                 state_, reward, done, _ = self.env.step(action)
                 episode_reward += reward
 
-                self.buffer.insert_transition(state, log_probs, entropy, reward, done)
+                # Store transition in buffer for TD learning
+                transition = [state, log_probs, entropy, reward, done]
+                self.buffer.insert_transition(transition)
 
+                # If the episode is finished (max_steps reached or from env)
                 if done or i == self.buffer.buffer_size - 1:
                     print('Episode: ', episode, 'Reward: %i' % episode_reward)
                     reward_history.append(episode_reward)
@@ -123,18 +140,22 @@ class A2CTrainer(TrainerBase):
                             print('Env has been solved at episode ' + str(episode) + '!')
                             self.writer.close()
                             exit()
-                    self.buffer.states = T.cat((self.buffer.states, T.unsqueeze(T.from_numpy(state), dim=0).float()))
                     break
                 else:
                     state = state_
 
-            if self.buffer.dones[-1]:
+            # Get the estimated next step. If episode ended, then next value is 0, otherwise get from critic
+            if self.buffer.buffer[-1][-1]:
                 R = T.as_tensor([0])
             else:
                 _, R = self.agent.model(state)
                 R = R.detach()
 
-            states, log_probs, entropys, rewards, dones = self.buffer.get_buffers()
+            # Get transitions from buffer to train with
+            transitions = self.buffer.get_buffer()
+            states, log_probs, entropys, rewards, dones = self.agent.convert_to_tensors(transitions)
+
+            # Calculate the discounted rewards
             returns = self.agent.calculate_returns(rewards, dones, R)
             actor_loss, critic_loss = self.agent.learn(states, log_probs, returns, entropys)
 
